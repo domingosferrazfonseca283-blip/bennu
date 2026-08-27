@@ -1,13 +1,17 @@
 from datetime import datetime, timezone
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .db import Base, SessionLocal, engine
 from .models import Agent, Task, AuditEvent
+from .tools_api import router as tools_router
+from packages.agents.security_agent_v01 import SecurityAgent
 
-app = FastAPI(title="Bennu Core", version="0.2.0")
+app = FastAPI(title="Bennu Core", version="0.3.0")
 Base.metadata.create_all(bind=engine)
+app.include_router(tools_router)
+security_agent = SecurityAgent()
 
 class TaskRequest(BaseModel):
     command: str
@@ -17,6 +21,10 @@ class AgentRequest(BaseModel):
     name: str
     role: str
     autonomous: bool = False
+
+class SecurityPlanRequest(BaseModel):
+    target: str
+    autonomy_level: int = 2
 
 def db():
     session = SessionLocal()
@@ -39,12 +47,32 @@ def list_agents(session: Session = Depends(db)):
 
 @app.post("/api/v1/agents")
 def create_agent(request: AgentRequest, session: Session = Depends(db)):
+    if request.role not in {"ceo", "security", "developer", "sales", "finance", "marketing"}:
+        raise HTTPException(status_code=400, detail="Unsupported agent role")
     agent = Agent(name=request.name, role=request.role, autonomous=request.autonomous)
     session.add(agent)
     session.add(AuditEvent(action="agent.created", actor="system", detail=request.name))
     session.commit()
     session.refresh(agent)
     return agent
+
+@app.post("/api/v1/security/plan")
+def create_security_plan(request: SecurityPlanRequest, session: Session = Depends(db)):
+    if not request.target.strip():
+        raise HTTPException(status_code=400, detail="Target is required")
+    plan = security_agent.plan(request.target)
+    decisions = security_agent.evaluate(request.target, request.autonomy_level)
+    session.add(AuditEvent(action="security.plan.created", actor="security-agent", detail=request.target))
+    session.commit()
+    return {
+        "target": plan.target,
+        "actions": [
+            {"name": action.name, "risk": action.risk, "requires_approval": action.requires_approval,
+             "allowed": decision.allowed, "approval_required": decision.requires_approval, "reason": decision.reason}
+            for action, decision in zip(plan.actions, decisions)
+        ],
+        "execution": "approval-required"
+    }
 
 @app.post("/api/v1/tasks")
 def create_task(request: TaskRequest, session: Session = Depends(db)):
