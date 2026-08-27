@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 from .db import Base, SessionLocal, engine
 from .models import Agent, Task, AuditEvent
 from .tools_api import router as tools_router
+from .security_plan_api import router as security_router
 from .auth import Principal, require_role
-from packages.agents.security_agent_v01 import SecurityAgent
 
-app = FastAPI(title="Bennu Core", version="0.4.0")
+app = FastAPI(title="Bennu Core", version="0.4.1")
 Base.metadata.create_all(bind=engine)
 app.include_router(tools_router)
-security_agent = SecurityAgent()
+app.include_router(security_router)
 
 class TaskRequest(BaseModel):
     command: str
@@ -22,10 +22,6 @@ class AgentRequest(BaseModel):
     name: str
     role: str
     autonomous: bool = False
-
-class SecurityPlanRequest(BaseModel):
-    target: str
-    autonomy_level: int = 2
 
 def db():
     session = SessionLocal()
@@ -56,24 +52,6 @@ def create_agent(request: AgentRequest, session: Session = Depends(db), principa
     session.commit()
     session.refresh(agent)
     return agent
-
-@app.post("/api/v1/security/plan")
-def create_security_plan(request: SecurityPlanRequest, session: Session = Depends(db), principal: Principal = Depends(require_role("security", "admin", "operator"))):
-    if not request.target.strip():
-        raise HTTPException(status_code=400, detail="Target is required")
-    plan = security_agent.plan(request.target)
-    decisions = security_agent.evaluate(request.target, request.autonomy_level)
-    session.add(AuditEvent(action="security.plan.created", actor=principal.subject, detail=request.target))
-    session.commit()
-    return {
-        "target": plan.target,
-        "actions": [
-            {"name": action.name, "risk": action.risk, "requires_approval": action.requires_approval,
-             "allowed": decision.allowed, "approval_required": decision.requires_approval, "reason": decision.reason}
-            for action, decision in zip(plan.actions, decisions)
-        ],
-        "execution": "approval-required"
-    }
 
 @app.post("/api/v1/tasks")
 def create_task(request: TaskRequest, session: Session = Depends(db), principal: Principal = Depends(require_role("operator", "admin", "security", "developer"))):
