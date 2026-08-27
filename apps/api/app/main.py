@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 from .db import Base, SessionLocal, engine
 from .models import Agent, Task, AuditEvent
 from .tools_api import router as tools_router
+from .auth import Principal, require_role
 from packages.agents.security_agent_v01 import SecurityAgent
 
-app = FastAPI(title="Bennu Core", version="0.3.0")
+app = FastAPI(title="Bennu Core", version="0.4.0")
 Base.metadata.create_all(bind=engine)
 app.include_router(tools_router)
 security_agent = SecurityAgent()
@@ -38,31 +39,31 @@ def health():
     return {"status": "online", "service": "bennu-core", "version": app.version, "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/api/v1/system/status")
-def system_status(session: Session = Depends(db)):
-    return {"status": "online", "security_score": 100, "agents": session.query(Agent).count(), "tasks": session.query(Task).count(), "mode": "safe"}
+def system_status(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer"))):
+    return {"status": "online", "security_score": 100, "agents": session.query(Agent).count(), "tasks": session.query(Task).count(), "mode": "safe", "principal": principal.subject, "role": principal.role}
 
 @app.get("/api/v1/agents")
-def list_agents(session: Session = Depends(db)):
+def list_agents(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer"))):
     return session.scalars(select(Agent).order_by(Agent.id)).all()
 
 @app.post("/api/v1/agents")
-def create_agent(request: AgentRequest, session: Session = Depends(db)):
+def create_agent(request: AgentRequest, session: Session = Depends(db), principal: Principal = Depends(require_role("admin", "operator"))):
     if request.role not in {"ceo", "security", "developer", "sales", "finance", "marketing"}:
         raise HTTPException(status_code=400, detail="Unsupported agent role")
     agent = Agent(name=request.name, role=request.role, autonomous=request.autonomous)
     session.add(agent)
-    session.add(AuditEvent(action="agent.created", actor="system", detail=request.name))
+    session.add(AuditEvent(action="agent.created", actor=principal.subject, detail=request.name))
     session.commit()
     session.refresh(agent)
     return agent
 
 @app.post("/api/v1/security/plan")
-def create_security_plan(request: SecurityPlanRequest, session: Session = Depends(db)):
+def create_security_plan(request: SecurityPlanRequest, session: Session = Depends(db), principal: Principal = Depends(require_role("security", "admin", "operator"))):
     if not request.target.strip():
         raise HTTPException(status_code=400, detail="Target is required")
     plan = security_agent.plan(request.target)
     decisions = security_agent.evaluate(request.target, request.autonomy_level)
-    session.add(AuditEvent(action="security.plan.created", actor="security-agent", detail=request.target))
+    session.add(AuditEvent(action="security.plan.created", actor=principal.subject, detail=request.target))
     session.commit()
     return {
         "target": plan.target,
@@ -75,14 +76,14 @@ def create_security_plan(request: SecurityPlanRequest, session: Session = Depend
     }
 
 @app.post("/api/v1/tasks")
-def create_task(request: TaskRequest, session: Session = Depends(db)):
+def create_task(request: TaskRequest, session: Session = Depends(db), principal: Principal = Depends(require_role("operator", "admin", "security", "developer"))):
     task = Task(command=request.command, dry_run=request.dry_run, status="pending" if request.dry_run else "approval-required")
     session.add(task)
-    session.add(AuditEvent(action="task.created", actor="system", detail=request.command))
+    session.add(AuditEvent(action="task.created", actor=principal.subject, detail=request.command))
     session.commit()
     session.refresh(task)
     return {"accepted": True, "task_id": task.id, "execution": task.status, "command": task.command}
 
 @app.get("/api/v1/audit")
-def audit(session: Session = Depends(db)):
+def audit(session: Session = Depends(db), principal: Principal = Depends(require_role("admin", "operator", "security"))):
     return session.scalars(select(AuditEvent).order_by(AuditEvent.id.desc()).limit(100)).all()
