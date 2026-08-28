@@ -30,7 +30,9 @@ class AuditEvent(Base):
 
 class OwnerIdentity(Base):
     __tablename__ = "owner_identity"
+    __table_args__ = (UniqueConstraint("singleton_key", name="uq_owner_identity_singleton"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    singleton_key: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     issuer: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     verified_email: Mapped[str] = mapped_column(String(320), nullable=False)
@@ -80,15 +82,5 @@ class MarketplaceProduct(Base):
     name: Mapped[str] = mapped_column(String(160))
     kind: Mapped[str] = mapped_column(String(60))
     price: Mapped[float] = mapped_column(Float, default=0)
-    currency: Mapped[str] = mapped_column(String(3), default="EUR")
     status: Mapped[str] = mapped_column(String(40), default="draft")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-class Deployment(Base):
-    __tablename__ = "deployments"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(160))
-    image: Mapped[str] = mapped_column(String(500))
-    replicas: Mapped[int] = mapped_column(Integer, default=1)
-    status: Mapped[str] = mapped_column(String(40), default="approval-required")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
