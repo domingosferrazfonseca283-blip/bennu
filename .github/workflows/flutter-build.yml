@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   android:
@@ -17,9 +21,15 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter create --platforms=android,windows .
+      - run: flutter create --platforms=android .
       - run: flutter pub get
       - run: flutter build apk --release
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bennu-android-apk
+          path: apps/client/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
 
   windows:
     runs-on: windows-latest
@@ -31,6 +41,12 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter create --platforms=android,windows .
+      - run: flutter create --platforms=windows .
       - run: flutter pub get
       - run: flutter build windows --release
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: bennu-windows-build
+          path: apps/client/build/windows/x64/runner/Release/**
+          if-no-files-found: error
