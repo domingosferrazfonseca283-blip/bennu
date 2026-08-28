@@ -9,10 +9,11 @@ config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
+database_url = os.getenv("DATABASE_URL") or os.getenv("BENNU_DB_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+
 target_metadata = Base.metadata
-DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 def run_migrations_offline():
     context.configure(url=config.get_main_option("sqlalchemy.url"), target_metadata=target_metadata, literal_binds=True, compare_type=True)
