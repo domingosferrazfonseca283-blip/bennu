@@ -1,0 +1,18 @@
+# Local environment and secrets
+infra/docker/.env
+.env
+
+# Node dependencies and build output
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Python caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Bennu OS build artifacts
+os/bennu-live/work/
+os/bennu-live/artifacts/
