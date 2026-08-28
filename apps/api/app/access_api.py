@@ -5,6 +5,7 @@ from .auth import Principal, current_identity, require_role
 from .access_repository import AccessRepository
 from .db import SessionLocal
 from .models import AuditEvent
+import os
 
 router = APIRouter(prefix="/api/v1/access", tags=["access"])
 
@@ -19,6 +20,10 @@ def db():
 class AccessDecision(BaseModel):
     role: str = "viewer"
 
+
+def configured_owner_email() -> str:
+    return os.getenv("BENNU_OWNER_EMAIL", "").strip().lower()
+
 @router.get("/me")
 def me(principal: Principal = Depends(current_identity), session: Session = Depends(db)):
     repo = AccessRepository(session)
@@ -30,6 +35,11 @@ def me(principal: Principal = Depends(current_identity), session: Session = Depe
 
 @router.post("/bootstrap")
 def bootstrap_owner(principal: Principal = Depends(current_identity), session: Session = Depends(db)):
+    owner_email = configured_owner_email()
+    if not owner_email:
+        raise HTTPException(status_code=503, detail="BENNU_OWNER_EMAIL is not configured")
+    if principal.email != owner_email:
+        raise HTTPException(status_code=403, detail="Only the configured owner can initialize ownership")
     repo = AccessRepository(session)
     if repo.get_owner() is not None:
         raise HTTPException(status_code=409, detail="Owner is already initialized")
