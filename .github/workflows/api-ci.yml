@@ -1,0 +1,23 @@
+name: Bennu API CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile Python sources
+        run: python -m compileall app migrations
+      - name: Validate Alembic configuration
+        run: alembic check
