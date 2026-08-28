@@ -1,0 +1,15 @@
+[Unit]
+Description=Bennu Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/bennu
+ExecStart=/usr/bin/docker compose -f /opt/bennu/infra/docker/docker-compose.prod.yml up
+ExecStop=/usr/bin/docker compose -f /opt/bennu/infra/docker/docker-compose.prod.yml down
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
