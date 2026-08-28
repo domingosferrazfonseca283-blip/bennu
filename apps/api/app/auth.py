@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import os
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
 import jwt
 from jwt import PyJWKClient
 from .access_repository import AccessRepository
@@ -41,15 +41,24 @@ def verify_identity(token: str) -> Principal:
     return Principal(subject, "unassigned", issuer, email)
 
 
-def _authorize(identity: Principal) -> Principal:
+def current_identity(authorization: str | None = Header(default=None)) -> Principal:
+    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return _development_principal(token) or verify_identity(token)
+
+
+def authorize(principal: Principal) -> Principal:
+    if principal.role == "admin":
+        return principal
     repo = AccessRepository()
     try:
         owner = repo.get_owner()
-        if owner and owner.issuer == identity.issuer and owner.subject == identity.subject:
-            return Principal(identity.subject, "admin", identity.issuer, identity.email)
-        request = repo.find_identity(identity.issuer, identity.subject)
+        if owner and owner.issuer == principal.issuer and owner.subject == principal.subject:
+            return Principal(principal.subject, "admin", principal.issuer, principal.email)
+        request = repo.find_identity(principal.issuer, principal.subject)
         if request and request.status == "approved" and request.role:
-            return Principal(identity.subject, request.role, identity.issuer, identity.email)
+            return Principal(principal.subject, request.role, principal.issuer, principal.email)
         if request and request.status == "rejected":
             raise HTTPException(status_code=403, detail="Access rejected")
         raise HTTPException(status_code=403, detail="Access approval required")
@@ -57,18 +66,9 @@ def _authorize(identity: Principal) -> Principal:
         repo.close()
 
 
-def current_identity(authorization: str | None = Header(default=None)) -> Principal:
-    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not token:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    demo = _development_principal(token)
-    if demo:
-        return demo
-    return _authorize(verify_identity(token))
-
-
 def require_role(*allowed_roles: str):
-    def dependency(principal: Principal = __import__("fastapi").Depends(current_identity)) -> Principal:
+    def dependency(principal: Principal = Depends(current_identity)) -> Principal:
+        principal = authorize(principal)
         if principal.role not in allowed_roles:
             raise HTTPException(status_code=403, detail="Insufficient role")
         return principal
