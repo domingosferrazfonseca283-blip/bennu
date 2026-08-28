@@ -1,0 +1,9 @@
+NAME="Bennu Linux"
+VERSION="1.0 (Phoenix)"
+ID=bennu
+ID_LIKE=debian
+PRETTY_NAME="Bennu Linux 1.0 (Phoenix)"
+VERSION_ID="1.0"
+HOME_URL="https://github.com/domingosferrazfonseca283-blip/bennu"
+SUPPORT_URL="https://github.com/domingosferrazfonseca283-blip/bennu/issues"
+BUG_REPORT_URL="https://github.com/domingosferrazfonseca283-blip/bennu/issues"
