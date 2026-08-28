@@ -7,12 +7,14 @@ from .db import Base, SessionLocal, engine
 from .models import Agent, Task, AuditEvent
 from .tools_api import router as tools_router
 from .security_plan_api import router as security_router
+from .access_api import router as access_router
 from .auth import Principal, require_role
 
-app = FastAPI(title="Bennu Core", version="0.4.1")
+app = FastAPI(title="Bennu Core", version="0.5.0")
 Base.metadata.create_all(bind=engine)
 app.include_router(tools_router)
 app.include_router(security_router)
+app.include_router(access_router)
 
 class TaskRequest(BaseModel):
     command: str
