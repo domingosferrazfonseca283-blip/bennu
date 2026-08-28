@@ -8,12 +8,15 @@ from .models import Agent, Task, AuditEvent
 from .tools_api import router as tools_router
 from .security_plan_api import router as security_router
 from .access_api import router as access_router
+from .business_api import router as business_router
+from .sales_api import router as sales_router
+from .marketplace_api import router as marketplace_router
+from .cloud_api import router as cloud_router
 from .auth import Principal, require_role
 
 app = FastAPI(title="Bennu Core", version="0.5.0")
-app.include_router(tools_router)
-app.include_router(security_router)
-app.include_router(access_router)
+for router in (tools_router, security_router, access_router, business_router, sales_router, marketplace_router, cloud_router):
+    app.include_router(router)
 
 class TaskRequest(BaseModel):
     command: str
@@ -36,11 +39,11 @@ def health():
     return {"status": "online", "service": "bennu-core", "version": app.version, "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/api/v1/system/status")
-def system_status(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer"))):
+def system_status(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer", "sales", "marketing", "finance"))):
     return {"status": "online", "security_score": 100, "agents": session.query(Agent).count(), "tasks": session.query(Task).count(), "mode": "safe", "principal": principal.subject, "role": principal.role}
 
 @app.get("/api/v1/agents")
-def list_agents(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer"))):
+def list_agents(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer", "sales", "marketing", "finance"))):
     return session.scalars(select(Agent).order_by(Agent.id)).all()
 
 @app.post("/api/v1/agents")
