@@ -13,7 +13,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table("leads",
+    op.create_table("business_leads",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(160), nullable=False),
         sa.Column("email", sa.String(320), nullable=False),
@@ -21,7 +21,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(40), nullable=False, server_default="new"),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
-    op.create_index("ix_leads_email", "leads", ["email"])
+    op.create_index("ix_business_leads_email", "business_leads", ["email"])
     op.create_table("opportunities",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("lead", sa.String(160), nullable=False),
@@ -29,7 +29,7 @@ def upgrade() -> None:
         sa.Column("stage", sa.String(40), nullable=False, server_default="new"),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
-    op.create_table("campaigns",
+    op.create_table("sales_campaigns",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(160), nullable=False),
         sa.Column("channel", sa.String(80), nullable=False),
@@ -58,7 +58,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("deployments")
     op.drop_table("marketplace_products")
-    op.drop_table("campaigns")
+    op.drop_table("sales_campaigns")
     op.drop_table("opportunities")
-    op.drop_index("ix_leads_email", table_name="leads")
-    op.drop_table("leads")
+    op.drop_index("ix_business_leads_email", table_name="business_leads")
+    op.drop_table("business_leads")
