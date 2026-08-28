@@ -12,16 +12,6 @@ class Principal:
     issuer: str
     email: str
 
-DEMO_TOKENS = {
-    "bennu-admin-dev": Principal("dev-admin", "admin", "dev", "dev-admin@localhost"),
-}
-
-
-def _development_principal(token: str) -> Principal | None:
-    if os.getenv("BENNU_DEV_AUTH", "false").lower() != "true":
-        return None
-    return DEMO_TOKENS.get(token)
-
 
 def verify_identity(token: str) -> Principal:
     issuer = os.getenv("BENNU_OIDC_ISSUER", "").strip().rstrip("/")
@@ -31,7 +21,13 @@ def verify_identity(token: str) -> Principal:
         raise HTTPException(status_code=503, detail="OIDC is not configured")
     try:
         signing_key = PyJWKClient(jwks_url).get_signing_key_from_jwt(token).key
-        claims = jwt.decode(token, signing_key, algorithms=["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"], audience=audience, issuer=issuer)
+        claims = jwt.decode(
+            token,
+            signing_key,
+            algorithms=["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"],
+            audience=audience,
+            issuer=issuer,
+        )
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Invalid identity token") from exc
     subject = str(claims.get("sub", "")).strip()
@@ -45,7 +41,7 @@ def current_identity(authorization: str | None = Header(default=None)) -> Princi
     token = authorization.removeprefix("Bearer ").strip() if authorization else ""
     if not token:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return _development_principal(token) or verify_identity(token)
+    return verify_identity(token)
 
 
 def authorize(principal: Principal) -> Principal:
