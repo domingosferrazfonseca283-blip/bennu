@@ -49,11 +49,15 @@ def current_identity(authorization: str | None = Header(default=None)) -> Princi
 
 
 def authorize(principal: Principal) -> Principal:
-    if principal.role == "admin":
-        return principal
     repo = AccessRepository()
     try:
         owner = repo.get_owner()
+        configured_owner_email = os.getenv("BENNU_OWNER_EMAIL", "").strip().lower()
+        if owner is None and configured_owner_email and principal.email == configured_owner_email:
+            try:
+                owner = repo.create_owner(principal.issuer, principal.subject, principal.email)
+            except RuntimeError:
+                owner = repo.get_owner()
         if owner and owner.issuer == principal.issuer and owner.subject == principal.subject:
             return Principal(principal.subject, "admin", principal.issuer, principal.email)
         request = repo.find_identity(principal.issuer, principal.subject)
