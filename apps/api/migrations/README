@@ -1,0 +1,15 @@
+# Bennu database migrations
+
+Alembic owns the production schema. For a fresh database:
+
+```bash
+alembic upgrade head
+```
+
+To create a new revision after changing SQLAlchemy models:
+
+```bash
+alembic revision --autogenerate -m "describe change"
+```
+
+Set `DATABASE_URL` in the environment for PostgreSQL or another SQLAlchemy-supported database. Do not commit credentials or production database URLs.
