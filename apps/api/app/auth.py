@@ -23,14 +23,12 @@ def _development_principal(token: str) -> Principal | None:
     return DEMO_TOKENS.get(token)
 
 
-def _verified_principal(token: str) -> Principal:
+def verify_identity(token: str) -> Principal:
     issuer = os.getenv("BENNU_OIDC_ISSUER", "").strip().rstrip("/")
     audience = os.getenv("BENNU_OIDC_AUDIENCE", "").strip()
-    jwks_url = os.getenv("BENNU_OIDC_JWKS_URL", "").strip()
+    jwks_url = os.getenv("BENNU_OIDC_JWKS_URL", "").strip() or (f"{issuer}/.well-known/jwks.json" if issuer else "")
     if not issuer or not audience:
         raise HTTPException(status_code=503, detail="OIDC is not configured")
-    if not jwks_url:
-        jwks_url = f"{issuer}/.well-known/jwks.json"
     try:
         signing_key = PyJWKClient(jwks_url).get_signing_key_from_jwt(token).key
         claims = jwt.decode(token, signing_key, algorithms=["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"], audience=audience, issuer=issuer)
@@ -38,18 +36,29 @@ def _verified_principal(token: str) -> Principal:
         raise HTTPException(status_code=401, detail="Invalid identity token") from exc
     subject = str(claims.get("sub", "")).strip()
     email = str(claims.get("email", "")).strip().lower()
-    email_verified = claims.get("email_verified") is True
-    if not subject or not email or not email_verified:
+    if not subject or not email or claims.get("email_verified") is not True:
         raise HTTPException(status_code=401, detail="Verified subject and email are required")
+    return Principal(subject, "unassigned", issuer, email)
+
+
+def current_identity(authorization: str | None = Header(default=None)) -> Principal:
+    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return _development_principal(token) or verify_identity(token)
+
+
+def _verified_principal(token: str) -> Principal:
+    identity = verify_identity(token)
     repo = AccessRepository()
     try:
         owner = repo.get_owner()
-        if owner and owner.issuer == issuer and owner.subject == subject:
-            return Principal(subject, "admin", issuer, email)
-        identity = repo.find_identity(issuer, subject)
-        if identity and identity.status == "approved" and identity.role:
-            return Principal(subject, identity.role, issuer, email)
-        if identity and identity.status == "rejected":
+        if owner and owner.issuer == identity.issuer and owner.subject == identity.subject:
+            return Principal(identity.subject, "admin", identity.issuer, identity.email)
+        request = repo.find_identity(identity.issuer, identity.subject)
+        if request and request.status == "approved" and request.role:
+            return Principal(identity.subject, request.role, identity.issuer, identity.email)
+        if request and request.status == "rejected":
             raise HTTPException(status_code=403, detail="Access rejected")
         raise HTTPException(status_code=403, detail="Access approval required")
     finally:
