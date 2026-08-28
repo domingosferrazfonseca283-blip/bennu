@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bennu
+      POSTGRES_USER: bennu
+      POSTGRES_PASSWORD: ${BENNU_DB_PASSWORD:?set BENNU_DB_PASSWORD}
+    volumes:
+      - bennu_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bennu -d bennu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - bennu_redis:/data
+
+  api:
+    build:
+      context: ../../apps/api
+    restart: unless-stopped
+    environment:
+      BENNU_DB_URL: postgresql+psycopg://bennu:${BENNU_DB_PASSWORD}@postgres:5432/bennu
+      BENNU_OIDC_ISSUER: ${BENNU_OIDC_ISSUER:?set BENNU_OIDC_ISSUER}
+      BENNU_OIDC_AUDIENCE: ${BENNU_OIDC_AUDIENCE:?set BENNU_OIDC_AUDIENCE}
+      BENNU_OWNER_EMAIL: ${BENNU_OWNER_EMAIL:-domingosferrazfonseca283@gmail.com}
+      BENNU_DEV_AUTH: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  bennu_pg:
+  bennu_redis:
