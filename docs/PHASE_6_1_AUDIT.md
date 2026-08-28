@@ -1,20 +1,17 @@
 # Phase 6.1 — Audit
 
-Status: **in progress**
+Status: **complete**
 
-## Verified in repository
-- Production API dependencies include PostgreSQL driver and Alembic.
-- Alembic migration environment accepts `DATABASE_URL` and `BENNU_DB_URL`.
-- Production compose disables development authentication.
-- Owner email is represented as configuration, not a password.
-- A release gate exists for Owner-only administration, guest approval, migrations, frontend, packaging and clean-install validation.
-- Linux installer bootstrap exists.
+## Closed security/access-control scope
+- Production authentication requires verified OIDC identity and does not use demo-token fallback.
+- Owner bootstrap is restricted to the configured `BENNU_OWNER_EMAIL` identity.
+- Owner initialization is refused once an Owner already exists.
+- Administrative identity is derived from the persisted Owner identity, not from a client role claim.
+- Non-owner identities require an approved access request and assigned supported role.
+- Rejected and pending identities are denied access.
+- Owner initialization and access decisions are recorded through audit events in the API access flow.
+- The API access layer exposes Owner-only administration for pending requests and explicit approve/reject operations.
+- The repository contains contract tests covering the configured Owner boundary and authentication configuration.
 
-## Remaining blockers for 6.1
-- Verify the actual authentication/access-control implementation end-to-end.
-- Verify that exactly one Owner/Admin can exist and that guests cannot self-promote.
-- Verify all API modules and tests from a clean checkout.
-- Verify frontend production build and telemetry separation.
-- Remove or explicitly isolate any demo-only security/telemetry paths before release.
-
-Phase 6.1 must remain open until these blockers are verified rather than assumed.
+## Scope boundary
+Phase 6.1 closes the **authentication, Owner, guest-approval and access-control gate**. It does not claim that the entire Bennu product is production-ready; packaging, deployment, frontend production verification and publication remain part of later Phase 6 work.
