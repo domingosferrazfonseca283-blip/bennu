@@ -41,15 +41,7 @@ def verify_identity(token: str) -> Principal:
     return Principal(subject, "unassigned", issuer, email)
 
 
-def current_identity(authorization: str | None = Header(default=None)) -> Principal:
-    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not token:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return _development_principal(token) or verify_identity(token)
-
-
-def _verified_principal(token: str) -> Principal:
-    identity = verify_identity(token)
+def _authorize(identity: Principal) -> Principal:
     repo = AccessRepository()
     try:
         owner = repo.get_owner()
@@ -65,12 +57,18 @@ def _verified_principal(token: str) -> Principal:
         repo.close()
 
 
+def current_identity(authorization: str | None = Header(default=None)) -> Principal:
+    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    demo = _development_principal(token)
+    if demo:
+        return demo
+    return _authorize(verify_identity(token))
+
+
 def require_role(*allowed_roles: str):
-    def dependency(authorization: str | None = Header(default=None)) -> Principal:
-        token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-        if not token:
-            raise HTTPException(status_code=401, detail="Authentication required")
-        principal = _development_principal(token) or _verified_principal(token)
+    def dependency(principal: Principal = __import__("fastapi").Depends(current_identity)) -> Principal:
         if principal.role not in allowed_roles:
             raise HTTPException(status_code=403, detail="Insufficient role")
         return principal
