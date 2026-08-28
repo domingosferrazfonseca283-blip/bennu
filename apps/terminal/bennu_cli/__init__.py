@@ -1,0 +1,1 @@
+"""Bennu command-line client."""
