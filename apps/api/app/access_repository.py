@@ -10,11 +10,7 @@ def utcnow():
 
 
 class AccessRepository:
-    """Database-backed access registry.
-
-    Identity is keyed by OIDC issuer + subject. Authorization state is durable
-    and survives application restarts.
-    """
+    """Durable OIDC identity and owner-mediated access registry."""
     def __init__(self, session: Session | None = None):
         self._owned_session = session is None
         self.session = session or SessionLocal()
@@ -27,9 +23,12 @@ class AccessRepository:
         return self.session.scalars(select(OwnerIdentity).limit(1)).first()
 
     def create_owner(self, issuer: str, subject: str, verified_email: str) -> OwnerIdentity:
+        issuer, subject, email = issuer.strip(), subject.strip(), verified_email.strip().lower()
+        if not issuer or not subject or not email or "@" not in email:
+            raise ValueError("verified identity is required")
         if self.get_owner() is not None:
             raise RuntimeError("owner is already initialized")
-        owner = OwnerIdentity(issuer=issuer.strip(), subject=subject.strip(), verified_email=verified_email.strip().lower())
+        owner = OwnerIdentity(issuer=issuer, subject=subject, verified_email=email)
         self.session.add(owner)
         self.session.commit()
         self.session.refresh(owner)
@@ -39,10 +38,19 @@ class AccessRepository:
         return self.session.scalar(select(AccessRequest).where(AccessRequest.issuer == issuer, AccessRequest.subject == subject))
 
     def create_request(self, issuer: str, subject: str, email: str) -> AccessRequest:
+        issuer, subject, email = issuer.strip(), subject.strip(), email.strip().lower()
         existing = self.find_identity(issuer, subject)
         if existing:
+            if existing.status == "rejected":
+                existing.status = "pending"
+                existing.role = None
+                existing.reviewed_at = None
+                existing.reviewed_by = None
+                existing.email = email
+                self.session.commit()
+                self.session.refresh(existing)
             return existing
-        item = AccessRequest(issuer=issuer.strip(), subject=subject.strip(), email=email.strip().lower(), status="pending")
+        item = AccessRequest(issuer=issuer, subject=subject, email=email, status="pending")
         self.session.add(item)
         self.session.commit()
         self.session.refresh(item)
