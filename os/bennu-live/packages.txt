@@ -1,0 +1,12 @@
+systemd
+linux-image-amd64
+sudo
+curl
+ca-certificates
+git
+docker.io
+python3
+python3-venv
+nginx
+network-manager
+openssh-client
