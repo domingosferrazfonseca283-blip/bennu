@@ -17,9 +17,13 @@ fi
 mkdir -p "$DATA_DIR"
 ln -sf "$DATA_DIR/bennu.db" "$API_DIR/bennu.db"
 
-if [ -z "${BENNU_MOBILE_TOKEN:-}" ] && [ -f "$ENV_FILE" ]; then
-  BENNU_MOBILE_TOKEN="$(awk -F= '/^BENNU_MOBILE_TOKEN=/ {print substr($0, index($0, "=")+1)}' "$ENV_FILE")"
-  export BENNU_MOBILE_TOKEN
+if [ -f "$ENV_FILE" ]; then
+  if [ -z "${BENNU_MOBILE_TOKEN:-}" ]; then
+    BENNU_MOBILE_TOKEN="$(awk -F= '/^BENNU_MOBILE_TOKEN=/ {print substr($0, index($0, "=")+1)}' "$ENV_FILE")"
+  fi
+  if [ -z "${BENNU_OWNER_EMAIL:-}" ]; then
+    BENNU_OWNER_EMAIL="$(awk -F= '/^BENNU_OWNER_EMAIL=/ {print substr($0, index($0, "=")+1)}' "$ENV_FILE")"
+  fi
 fi
 
 if [ -z "${BENNU_MOBILE_TOKEN:-}" ]; then
@@ -30,15 +34,16 @@ if [ -z "${BENNU_MOBILE_TOKEN:-}" ]; then
     umask 077
     printf '%s\n' "$BENNU_MOBILE_TOKEN" > "$ROOT_DIR/.bennu-mobile-token"
   fi
-  export BENNU_MOBILE_TOKEN
 fi
 
+export BENNU_MOBILE_TOKEN
+export BENNU_OWNER_EMAIL="${BENNU_OWNER_EMAIL:-domingosferrazfonseca283@gmail.com}"
 export DATABASE_URL="${DATABASE_URL:-sqlite:///$DATA_DIR/bennu.db}"
-export BENNU_OWNER_EMAIL="${BENNU_OWNER_EMAIL:-}"
 
 cd "$API_DIR"
 "$VENV/bin/alembic" upgrade head
 printf '\nBennu Core: http://%s:%s\n' "$HOST" "$PORT"
-printf 'Mobile token source: %s\n' "${ENV_FILE}" 
+printf 'Owner: %s\n' "$BENNU_OWNER_EMAIL"
+printf 'Mobile token source: %s\n' "$ENV_FILE"
 printf 'Press Ctrl+C to stop.\n\n'
 exec "$VENV/bin/python" -m uvicorn app.main:app --host "$HOST" --port "$PORT"
