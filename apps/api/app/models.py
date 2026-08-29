@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, Integer, SmallInteger, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -32,7 +32,7 @@ class OwnerIdentity(Base):
     __tablename__ = "owner_identity"
     __table_args__ = (UniqueConstraint("singleton_key", name="uq_owner_identity_singleton"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    singleton_key: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    singleton_key: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1", nullable=False)
     issuer: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     verified_email: Mapped[str] = mapped_column(String(320), nullable=False)
