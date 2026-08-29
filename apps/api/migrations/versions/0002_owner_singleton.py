@@ -12,10 +12,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("owner_identity", sa.Column("singleton_key", sa.SmallInteger(), nullable=False, server_default="1"))
-    op.create_unique_constraint("uq_owner_identity_singleton", "owner_identity", ["singleton_key"])
+    # SQLite does not support ALTER TABLE ... ADD CONSTRAINT.  Use Alembic's
+    # batch mode so the migration is portable to the SQLite database used by CI.
+    with op.batch_alter_table("owner_identity") as batch_op:
+        batch_op.add_column(
+            sa.Column("singleton_key", sa.SmallInteger(), nullable=False, server_default="1")
+        )
+        batch_op.create_unique_constraint(
+            "uq_owner_identity_singleton", ["singleton_key"]
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_owner_identity_singleton", "owner_identity", type_="unique")
-    op.drop_column("owner_identity", "singleton_key")
+    with op.batch_alter_table("owner_identity") as batch_op:
+        batch_op.drop_constraint("uq_owner_identity_singleton", type_="unique")
+        batch_op.drop_column("singleton_key")
