@@ -36,7 +36,7 @@ def operations(session: Session = Depends(db)):
     events = [
         {
             "id": item.id,
-            "timestamp": item.timestamp.isoformat() if item.timestamp else None,
+            "timestamp": item.created_at.isoformat() if item.created_at else None,
             "type": item.action,
             "actor": item.actor,
             "detail": item.detail,
