@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
-from .db import SessionLocal
+from .dependencies import db
 from .models import Agent, Task, AuditEvent
 from .tools_api import router as tools_router
 from .security_plan_api import router as security_router
@@ -15,7 +15,7 @@ from .cloud_api import router as cloud_router
 from .operations_api import router as operations_router, runtime as operational_runtime
 from .auth import Principal, require_role
 
-app = FastAPI(title="Bennu Core", version="0.7.2")
+app = FastAPI(title="Bennu Core", version="0.7.3")
 for router in (tools_router, security_router, access_router, business_router, sales_router, marketplace_router, cloud_router, operations_router):
     app.include_router(router)
 
@@ -27,13 +27,6 @@ class AgentRequest(BaseModel):
     name: str
     role: str
     autonomous: bool = False
-
-def db():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 @app.get("/health")
 def health():
@@ -83,18 +76,11 @@ def mobile_dashboard(session: Session = Depends(db)):
     operation_event_count = len(operational_runtime.recent_events(200))
 
     return {
-        "status": "online",
-        "service": "bennu-core",
-        "version": app.version,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "status": "online", "service": "bennu-core", "version": app.version, "timestamp": datetime.now(timezone.utc).isoformat(),
         "privacy": {"mode": "private", "pii_exposed": False, "secrets_exposed": False},
         "learning": {"mode": "telemetry-driven", "source": "live-core-database-and-operations", "meaning": "A interface adapta os indicadores ao estado observado; não inventa métricas."},
         "summary": {"agents": count("agents"), "tasks": count("tasks"), "audit_events": audit_total, "pending_access": pending_access, "leads": count("business_leads"), "opportunities": count("opportunities"), "pipeline_value": pipeline_value, "campaigns": count("sales_campaigns"), "products": count("marketplace_products"), "deployments": count("deployments"), "missions": mission_count, "operation_events": operation_event_count},
-        "task_status": task_status,
-        "agent_status": agent_status,
-        "agent_roles": agent_roles,
-        "access_status": access_status,
-        "opportunity_stages": opportunity_stages,
+        "task_status": task_status, "agent_status": agent_status, "agent_roles": agent_roles, "access_status": access_status, "opportunity_stages": opportunity_stages,
         "modules": {
             "ia_agentes": {"state": "online" if active_agents else "ready", "agents": count("agents"), "autonomous": int(session.scalar(text("SELECT COALESCE(SUM(CASE WHEN autonomous THEN 1 ELSE 0 END), 0) FROM agents")) or 0)},
             "seguranca": {"state": "protected", "audit_events": audit_total, "access_pending": pending_access},
@@ -121,8 +107,7 @@ def create_agent(request: AgentRequest, session: Session = Depends(db), principa
     agent = Agent(name=request.name, role=request.role, autonomous=request.autonomous)
     session.add(agent)
     session.add(AuditEvent(action="agent.created", actor=principal.subject, detail=request.name))
-    session.commit()
-    session.refresh(agent)
+    session.commit(); session.refresh(agent)
     return agent
 
 @app.post("/api/v1/tasks")
@@ -130,8 +115,7 @@ def create_task(request: TaskRequest, session: Session = Depends(db), principal:
     task = Task(command=request.command, dry_run=request.dry_run, status="pending" if request.dry_run else "approval-required")
     session.add(task)
     session.add(AuditEvent(action="task.created", actor=principal.subject, detail=request.command))
-    session.commit()
-    session.refresh(task)
+    session.commit(); session.refresh(task)
     return {"accepted": True, "task_id": task.id, "execution": task.status, "command": task.command}
 
 @app.get("/api/v1/audit")
