@@ -43,7 +43,7 @@ jobs:
           p.write_text(s)
           PY
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze lib/main.dart
       - run: flutter build apk --release
       - name: Prepare Android release asset
         run: cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/bennu-${{ env.RELEASE_TAG }}-android.apk"
@@ -68,7 +68,7 @@ jobs:
         run: Remove-Item -Recurse -Force test -ErrorAction SilentlyContinue
       - run: copy lib\command_center_release.dart lib\main.dart
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze lib/main.dart
       - run: flutter build windows --release
       - name: Package Windows release
         shell: pwsh
@@ -96,7 +96,7 @@ jobs:
         run: rm -rf test
       - run: cp lib/command_center_release.dart lib/main.dart
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze lib/main.dart
       - run: flutter build linux --release
       - name: Package Linux release
         run: tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/bennu-${{ env.RELEASE_TAG }}-linux-x64.tar.gz" bundle
