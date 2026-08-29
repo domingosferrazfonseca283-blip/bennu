@@ -1,7 +1,7 @@
 name: bennu_client
-description: Shared Bennu client for Android and Windows.
+description: Aplicação cliente do Bennu para Android e Windows.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.6.6+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -9,6 +9,8 @@ environment:
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   http: ^1.2.0
 
