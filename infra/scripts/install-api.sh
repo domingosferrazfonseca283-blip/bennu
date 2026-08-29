@@ -5,6 +5,8 @@ REPO_URL="${BENNU_REPO_URL:-https://github.com/domingosferrazfonseca283-blip/ben
 APP_DIR="${BENNU_APP_DIR:-/opt/bennu}"
 DATA_DIR="${BENNU_DATA_DIR:-/var/lib/bennu}"
 SERVICE="bennu-api"
+ENV_DIR="/etc/bennu"
+ENV_FILE="$ENV_DIR/bennu.env"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root: sudo sh infra/scripts/install-api.sh" >&2
@@ -31,7 +33,7 @@ if ! id bennu >/dev/null 2>&1; then
   useradd --system --home-dir "$APP_DIR" --create-home --shell /sbin/nologin bennu
 fi
 
-mkdir -p "$APP_DIR" "$DATA_DIR"
+mkdir -p "$APP_DIR" "$DATA_DIR" "$ENV_DIR"
 if [ ! -d "$APP_DIR/.git" ]; then
   git clone "$REPO_URL" "$APP_DIR"
 else
@@ -49,6 +51,18 @@ python3 -m venv "$APP_DIR/.venv"
 # Keep the database outside the Git working tree.
 ln -sf "$DATA_DIR/bennu.db" "$APP_DIR/apps/api/bennu.db"
 chown -h bennu:bennu "$APP_DIR/apps/api/bennu.db"
+
+# Create the owner-controlled mobile gate once. Re-running the installer keeps it stable.
+if [ ! -f "$ENV_FILE" ] || ! grep -q '^BENNU_MOBILE_TOKEN=' "$ENV_FILE" 2>/dev/null; then
+  TOKEN="$($APP_DIR/.venv/bin/python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+  {
+    printf 'BENNU_MOBILE_TOKEN=%s\n' "$TOKEN"
+    if [ -n "${BENNU_OWNER_EMAIL:-}" ]; then
+      printf 'BENNU_OWNER_EMAIL=%s\n' "$BENNU_OWNER_EMAIL"
+    fi
+  } > "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+fi
 
 # Alembic uses the relative SQLite URL in alembic.ini, so run it from apps/api.
 su -s /bin/sh bennu -c "cd '$APP_DIR/apps/api' && '$APP_DIR/.venv/bin/alembic' upgrade head"
@@ -69,4 +83,6 @@ sleep 1
 curl -fsS http://127.0.0.1:8000/health
 printf '\n\nBennu API installed. LAN addresses:\n'
 ip -4 addr show scope global 2>/dev/null | awk '/inet / {print "  http://" $2}' | cut -d/ -f1 || true
+printf '\nPrivate mobile gate:\n'
+awk -F= '/^BENNU_MOBILE_TOKEN=/ {print "  token provisioned in /etc/bennu/bennu.env"}' "$ENV_FILE"
 printf '\nMobile URL: http://<SERVER-IP>:8000\n'
