@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (for example v0.6.9)'
+        description: 'Release tag (for example v0.7.0)'
         required: true
         type: string
 
@@ -29,8 +29,8 @@ jobs:
         with:
           channel: stable
       - run: flutter create --platforms=android .
-      - name: Use real-data Bennu Command Center
-        run: cp lib/main_real.dart lib/main.dart
+      - name: Use real-data private Command Center
+        run: cp lib/command_center.dart lib/main.dart
       - name: Allow LAN HTTP for Bennu server
         run: |
           python3 - <<'PY'
@@ -62,7 +62,7 @@ jobs:
         with:
           channel: stable
       - run: flutter create --platforms=windows .
-      - run: copy lib\main_real.dart lib\main.dart
+      - run: copy lib\command_center.dart lib\main.dart
       - run: flutter pub get
       - run: flutter build windows --release
       - name: Package Windows release
@@ -88,7 +88,7 @@ jobs:
       - name: Install Linux Flutter dependencies
         run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev
       - run: flutter create --platforms=linux .
-      - run: cp lib/main_real.dart lib/main.dart
+      - run: cp lib/command_center.dart lib/main.dart
       - run: flutter pub get
       - run: flutter build linux --release
       - name: Package Linux release
