@@ -24,4 +24,8 @@ class JsonStore:
     def audit(self, actor: str, action: str, resource: str, details: dict | None = None):
         data = self._read(); data["audit"].append({"timestamp": datetime.now(timezone.utc).isoformat(), "actor": actor, "action": action, "resource": resource, "details": details or {}}); self._write(data)
 
+    def list_missions(self): return list(self._read()["missions"].values())
+    def get_mission(self, mission_id: str): return self._read()["missions"].get(mission_id)
+    def list_executions(self): return list(self._read()["executions"].values())
+    def get_execution(self, task_id: str): return self._read()["executions"].get(task_id)
     def list_audit(self): return list(reversed(self._read()["audit"]))
