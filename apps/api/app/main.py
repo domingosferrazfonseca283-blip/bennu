@@ -12,10 +12,11 @@ from .business_api import router as business_router
 from .sales_api import router as sales_router
 from .marketplace_api import router as marketplace_router
 from .cloud_api import router as cloud_router
+from .operations_api import router as operations_router
 from .auth import Principal, require_role
 
-app = FastAPI(title="Bennu Core", version="0.6.8")
-for router in (tools_router, security_router, access_router, business_router, sales_router, marketplace_router, cloud_router):
+app = FastAPI(title="Bennu Core", version="0.7.0")
+for router in (tools_router, security_router, access_router, business_router, sales_router, marketplace_router, cloud_router, operations_router):
     app.include_router(router)
 
 class TaskRequest(BaseModel):
