@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from .main import db
+from .dependencies import db
 from .models import AuditEvent
 from .business_models import BusinessLead, Opportunity
 from .auth import Principal, require_role
