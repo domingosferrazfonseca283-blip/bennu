@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from .main import db
+from .dependencies import db
 from .business_models import MarketplaceProduct
 from .auth import Principal, require_role
 
