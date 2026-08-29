@@ -10,6 +10,7 @@ Group=bennu
 WorkingDirectory=/opt/bennu/apps/api
 Environment=PYTHONUNBUFFERED=1
 Environment=DATABASE_URL=sqlite:////var/lib/bennu/bennu.db
+EnvironmentFile=-/etc/bennu/bennu.env
 ExecStart=/opt/bennu/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=3
