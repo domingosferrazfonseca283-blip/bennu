@@ -85,3 +85,12 @@ class MarketplaceProduct(Base):
     currency: Mapped[str] = mapped_column(String(3), default="EUR", server_default="EUR", nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class Deployment(Base):
+    __tablename__ = "deployments"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    image: Mapped[str] = mapped_column(String(255), nullable=False)
+    replicas: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="approval-required", server_default="approval-required", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
