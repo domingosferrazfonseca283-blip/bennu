@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from .db import SessionLocal
 from .models import Agent, Task, AuditEvent
@@ -14,7 +14,7 @@ from .marketplace_api import router as marketplace_router
 from .cloud_api import router as cloud_router
 from .auth import Principal, require_role
 
-app = FastAPI(title="Bennu Core", version="0.5.0")
+app = FastAPI(title="Bennu Core", version="0.6.8")
 for router in (tools_router, security_router, access_router, business_router, sales_router, marketplace_router, cloud_router):
     app.include_router(router)
 
@@ -37,6 +37,30 @@ def db():
 @app.get("/health")
 def health():
     return {"status": "online", "service": "bennu-core", "version": app.version, "timestamp": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/api/v1/mobile/overview")
+def mobile_overview(session: Session = Depends(db)):
+    """Read-only mobile overview. No authentication is required because it exposes only aggregate telemetry."""
+    task_rows = session.execute(select(Task.status)).all()
+    task_status = {}
+    for (status,) in task_rows:
+        task_status[status] = task_status.get(status, 0) + 1
+
+    agent_rows = session.execute(select(Agent.role)).all()
+    agent_roles = {}
+    for (role,) in agent_rows:
+        agent_roles[role] = agent_roles.get(role, 0) + 1
+
+    return {
+        "status": "online",
+        "service": "bennu-core",
+        "version": app.version,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "agents": len(agent_rows),
+        "tasks": len(task_rows),
+        "task_status": task_status,
+        "agent_roles": agent_roles,
+    }
 
 @app.get("/api/v1/system/status")
 def system_status(session: Session = Depends(db), principal: Principal = Depends(require_role("viewer", "operator", "admin", "security", "developer", "sales", "marketing", "finance"))):
