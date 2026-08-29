@@ -67,9 +67,21 @@ fi
 # Alembic uses the relative SQLite URL in alembic.ini, so run it from apps/api.
 su -s /bin/sh bennu -c "cd '$APP_DIR/apps/api' && '$APP_DIR/.venv/bin/alembic' upgrade head"
 
-install -m 0644 "$APP_DIR/infra/systemd/bennu-api.service" /etc/systemd/system/bennu-api.service
-systemctl daemon-reload
-systemctl enable --now "$SERVICE"
+install -m 0644 "$APP_DIR/infra/systemd/bennu-api.service" /etc/systemd/system/bennu-api.service 2>/dev/null || true
+
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files >/dev/null 2>&1; then
+  systemctl daemon-reload
+  systemctl enable --now "$SERVICE"
+else
+  # Containers, Termux and minimal Linux images often do not run systemd.
+  # Start the same API with the portable launcher instead.
+  if command -v su >/dev/null 2>&1; then
+    su -s /bin/sh bennu -c "nohup '$APP_DIR/infra/scripts/run-api-portable.sh' > '$DATA_DIR/api.log' 2>&1 & echo \$! > '$DATA_DIR/api.pid'"
+  else
+    nohup "$APP_DIR/infra/scripts/run-api-portable.sh" > "$DATA_DIR/api.log" 2>&1 &
+    echo $! > "$DATA_DIR/api.pid"
+  fi
+fi
 
 # Fedora/RHEL and Debian/Ubuntu both commonly use firewalld or ufw.
 if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
@@ -79,10 +91,10 @@ elif command -v ufw >/dev/null 2>&1; then
   ufw allow 8000/tcp || true
 fi
 
-sleep 1
+sleep 2
 curl -fsS http://127.0.0.1:8000/health
 printf '\n\nBennu API installed. LAN addresses:\n'
 ip -4 addr show scope global 2>/dev/null | awk '/inet / {print "  http://" $2}' | cut -d/ -f1 || true
 printf '\nPrivate mobile gate:\n'
-awk -F= '/^BENNU_MOBILE_TOKEN=/ {print "  token provisioned in /etc/bennu/bennu.env"}' "$ENV_FILE"
+printf '  token provisioned in %s\n' "$ENV_FILE"
 printf '\nMobile URL: http://<SERVER-IP>:8000\n'
