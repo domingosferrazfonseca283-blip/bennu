@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from .main import db
+from .dependencies import db
 from .models import AuditEvent
 from .auth import Principal, require_role
 
